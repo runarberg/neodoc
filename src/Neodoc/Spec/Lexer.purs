@@ -7,6 +7,7 @@ import Data.NonEmpty (NonEmpty, (:|))
 import Data.NonEmpty as NonEmpty
 import Data.List as L
 import Data.Monoid (mempty)
+import Data.Pretty
 import Data.Functor (($>))
 import Control.Alt ((<|>))
 import Control.Apply ((*>), (<*))
@@ -24,6 +25,7 @@ import Data.String.Regex (test, parseFlags, replace) as Regex
 import Partial.Unsafe (unsafePartial)
 import Data.String.Ext ((^=), (~~))
 import Neodoc.Spec.Error (SpecParseError(..))
+import Neodoc.Spec.Token
 import Neodoc.Spec.Parser.Base (
   lowerAlphaNum, alphaNum, alpha, space, lowerAlpha, upperAlpha, string'
 , getPosition, getInput, spaces, eol)
@@ -93,105 +95,7 @@ lexDescs = lex Descriptions
 lexUsage :: String -> Either SpecParseError (List PositionedToken)
 lexUsage = lex Usage
 
-type OptionArgument = {
-  name     :: String
-, optional :: Boolean
-}
-
-data Token
-  = LParen
-  | RParen
-  | LSquare
-  | RSquare
-  | Dash
-  | VBar
-  | Colon
-  | Comma
-  | Newline
-  | TripleDot
-  | Reference String
-  | LOpt String (Maybe OptionArgument)
-  | SOpt (NonEmpty Array Char) (Maybe OptionArgument)
-  | Tag String String
-  | Name String
-  | ShoutName String
-  | AngleName String
-  | Garbage Char
-  | DoubleDash
-
-prettyPrintToken :: Token -> String
-prettyPrintToken LParen        = show '('
-prettyPrintToken RParen        = show ')'
-prettyPrintToken LSquare       = show '['
-prettyPrintToken RSquare       = show ']'
-prettyPrintToken Dash          = show '-'
-prettyPrintToken VBar          = show '|'
-prettyPrintToken Newline       = show '\n'
-prettyPrintToken Colon         = show ':'
-prettyPrintToken Comma         = show ','
-prettyPrintToken TripleDot     = "..."
-prettyPrintToken DoubleDash    = "--"
-prettyPrintToken (Reference r) = "Reference " ~~ show r
-prettyPrintToken (Garbage   c) = "Garbage "   ~~ show c
-prettyPrintToken (Tag k v)     = "Tag "       ~~ (show k) ~~ " "  ~~ (show v)
-prettyPrintToken (Name      n) = "Name "      ~~ show n
-prettyPrintToken (ShoutName n) = "ShoutName " ~~ show n
-prettyPrintToken (AngleName n) = "AngleName " ~~ show n
-prettyPrintToken (LOpt n arg)  = "--" <> n <> arg'
-  where arg' = fromMaybe "" do
-                arg <#> \a ->
-                  if a.optional then "[" else ""
-                    <> a.name
-                    <> if a.optional then "]" else ""
-prettyPrintToken (SOpt (c :| cs) arg) = "-" <> n <> arg'
-  where n = fromCharArray $ A.cons c cs
-        arg' = fromMaybe "" do
-                arg <#> \a ->
-                  if a.optional then "[" else ""
-                    <> a.name
-                    <> if a.optional then "]" else ""
-
 data PositionedToken = PositionedToken P.Position Token
-
-instance showToken :: Show Token where
-  show = show <<< prettyPrintToken
-
-instance eqToken :: Eq Token where
-  eq LParen            LParen             = true
-  eq RParen            RParen             = true
-  eq LSquare           LSquare            = true
-  eq RSquare           RSquare            = true
-  eq VBar              VBar               = true
-  eq Colon             Colon              = true
-  eq Comma             Comma              = true
-  eq Dash              Dash               = true
-  eq DoubleDash        DoubleDash         = true
-  eq TripleDot         TripleDot          = true
-  eq Newline           Newline            = true
-  eq (Reference r)     (Reference r')     = r == r'
-  eq (LOpt n arg)      (LOpt n' arg')
-    = (n == n')
-    && ((isNothing arg && isNothing arg')
-        || (fromMaybe false do
-              a  <- arg
-              a' <- arg'
-              pure $ (a.name == a'.name)
-                  && (a.optional == a'.optional)
-            ))
-  eq (SOpt (c:|cs) arg) (SOpt (c':|cs') arg')
-    = (c == c') && (cs == cs')
-    && ((isNothing arg && isNothing arg')
-        || (fromMaybe false do
-              a  <- arg
-              a' <- arg'
-              pure $ (a.name == a'.name)
-                  && (a.optional == a'.optional)
-            ))
-  eq (AngleName n)     (AngleName n')     = n == n'
-  eq (ShoutName n)     (ShoutName n')     = n == n'
-  eq (Name n)          (Name n')          = n == n'
-  eq (Garbage c)       (Garbage c')       = c == c'
-  eq _ _                                  = false
 
 instance showPositionedToken :: Show PositionedToken where
   show (PositionedToken pos tok) = "PositionedToken " <> show pos <> " " <> show tok
@@ -463,7 +367,7 @@ token test = P.ParserT $ \(P.PState toks pos) ->
 
 -- | Match the token at the head of the stream
 match :: Token -> TokenParser Unit
-match tok = token (guard <<< (_ == tok)) P.<?> prettyPrintToken tok
+match tok = token (guard <<< (_ == tok)) P.<?> pretty tok
 
 anyToken :: TokenParser Token
 anyToken = token $ Just
@@ -511,7 +415,7 @@ garbage = "garbage" <??> token go
     go _           = Nothing
 
 lopt :: TokenParser { name :: String
-                    , arg  :: Maybe OptionArgument
+                    , arg  :: Maybe OptionArgumentObj
                     }
 lopt = "long-option" <??> token go
   where
@@ -519,7 +423,7 @@ lopt = "long-option" <??> token go
     go _          = Nothing
 
 sopt :: TokenParser { chars :: NonEmpty Array Char
-                    , arg   :: Maybe OptionArgument
+                    , arg   :: Maybe OptionArgumentObj
                     }
 sopt = "short-option" <??> token go
   where
