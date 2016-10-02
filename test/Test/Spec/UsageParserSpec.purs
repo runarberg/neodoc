@@ -22,7 +22,7 @@ import Partial.Unsafe (unsafePartial)
 import Test.Support.Usage as U
 
 import Neodoc.Error.Class (capture) as Error
-import Neodoc.Spec.Lexer as Lexer
+import Neodoc.Spec.Lexer2 as Lexer
 import Neodoc.Spec.Parser as Spec
 import Neodoc.Spec.Parser.Base (debug)
 import Neodoc.Spec.Parser.Usage as U

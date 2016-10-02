@@ -31,7 +31,8 @@ import Data.Pretty (class Pretty, pretty)
 import Partial.Unsafe
 import Neodoc.Value
 import Neodoc.Value as Value
-import Neodoc.Spec.Lexer as L
+import Neodoc.Spec.Lexer2 as L
+import Neodoc.Spec.TokenParser as L
 import Neodoc.Spec.Parser.Combinators
 import Neodoc.OptionAlias as OptionAlias
 import Neodoc.OptionAlias (Aliases)

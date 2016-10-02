@@ -40,7 +40,7 @@ import Neodoc.Error.Class (capture) as Error
 import Neodoc.Spec as Neodoc
 import Neodoc.Spec (Spec(..))
 import Neodoc.Spec.Parser as Spec
-import Neodoc.Spec.Lexer as Lexer
+import Neodoc.Spec.Lexer2 as Lexer
 import Neodoc.Scanner as Scanner
 import Neodoc.Solve as Solver
 import Neodoc.Solve.Error (SolveError(..))

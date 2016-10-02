@@ -23,7 +23,7 @@ import Neodoc.Data.Description
 import Neodoc.Data.Description as Description
 import Neodoc.Data.OptionArgument
 import Neodoc.Spec.Parser.Description as Description
-import Neodoc.Spec.Lexer as Lexer
+import Neodoc.Spec.Lexer2 as Lexer
 import Neodoc.Spec.Parser as Spec
 import Neodoc.Spec.Error
 import Neodoc.OptionAlias

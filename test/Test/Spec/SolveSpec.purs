@@ -32,7 +32,7 @@ import Neodoc.Data.SolvedLayout
 import Neodoc.Data.SolvedLayout as Solved
 import Neodoc.Data.UsageLayout as Usage
 import Neodoc.Spec (Spec (..))
-import Neodoc.Spec.Lexer as Lexer
+import Neodoc.Spec.Lexer2 as Lexer
 import Neodoc.Spec.Parser as SpecParser
 import Neodoc.Spec.Parser.Usage as U
 import Neodoc.Spec.Parser.Description as D

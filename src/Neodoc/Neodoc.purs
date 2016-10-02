@@ -61,7 +61,7 @@ import Neodoc.Error as Error
 import Neodoc.Error (NeodocError)
 import Neodoc.Scanner as Scanner
 import Neodoc.Spec.Parser as Spec
-import Neodoc.Spec.Lexer as Lexer
+import Neodoc.Spec.Lexer2 as Lexer
 import Neodoc.Solve as Solver
 import Neodoc.Value (Value(..))
 import Neodoc.ArgParser as ArgParser

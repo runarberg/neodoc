@@ -15,7 +15,8 @@ import Text.Parsing.Parser (PState(..), ParserT(..), Result(..)) as P
 import Text.Parsing.Parser.Combinators ((<?>), try) as P
 import Text.Parsing.Parser.Pos (Position(..)) as P
 
-import Neodoc.Spec.Lexer (TokenParser, PositionedToken(..))
+import Neodoc.Spec.TokenParser (TokenParser)
+import Neodoc.Spec.Lexer2 (PositionedToken(..))
 import Neodoc.Spec.ParserState
 import Neodoc.Spec.ParserState as ParserState
 
@@ -30,7 +31,7 @@ traceState = do
 getTokenPosition :: TokenParser P.Position
 getTokenPosition = P.ParserT $ \(P.PState s pos) ->
   pure case s of
-    (PositionedToken spos _):_ -> P.Result s (Right spos) false pos
+    (PositionedToken spos _):_ -> P.Result s (Right (P.Position 1 spos)) false pos
     otherwise                  -> P.Result s (Right pos)  false pos
 
 -- |
