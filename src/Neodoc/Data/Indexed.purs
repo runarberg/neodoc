@@ -2,6 +2,7 @@ module Neodoc.Data.Indexed where
 
 import Prelude
 import Data.Function (on)
+import Data.Generic
 import Data.Tuple.Nested ((/\))
 import Data.Map as Map
 import Data.Map (Map())
@@ -19,9 +20,10 @@ data Indexed a = Indexed Int a
 
 derive instance eqIndexed :: (Eq a) => Eq (Indexed a)
 derive instance ordIndexed :: (Ord a) => Ord (Indexed a)
+derive instance genericIndexed :: (Generic a) => Generic (Indexed a)
 
-instance showIndexed :: (Show a) => Show (Indexed a) where
-  show (Indexed n a) = "Indexed " <> show n <> " " <> show a
+instance showIndexed :: (Generic a) => Show (Indexed a) where
+  show = gShow
 
 instance prettyIndexed :: (Pretty a) => Pretty (Indexed a) where
   pretty (Indexed n a) = "#" <> show n <> ": " <> pretty a

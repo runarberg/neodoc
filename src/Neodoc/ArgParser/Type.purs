@@ -408,11 +408,12 @@ cached
    . Required (Indexed SolvedLayout)
   -> ArgParser r (List KeyValue)
   -> ArgParser r (List KeyValue)
-cached x p = do
+cached x p =
   Parser \c s (g@{cache}) i ->
     let key = i /\ x
      in case Map.lookup key cache of
-          Just (Step b _ s' _ i' result) -> Step b c s' g i' result
+          Just (Step b _ s' _ i' result) ->
+            Step b c s' g i' result
           Nothing ->
             case unParser p c s g i of
               step@(Step b c' s' g' i' result) ->

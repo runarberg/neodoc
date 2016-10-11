@@ -2,6 +2,7 @@ module Neodoc.Data.Layout where
 
 import Prelude
 import Data.Foldable (intercalate)
+import Data.Generic
 import Data.NonEmpty (NonEmpty, (:|))
 import Data.NonEmpty.Extra as NonEmpty
 import Data.Maybe (Maybe(..))
@@ -64,3 +65,4 @@ instance showLayout :: (Show a) => Show (Layout a) where
 
 derive instance eqLayout :: (Eq a) => Eq (Layout a)
 derive instance ordLayout :: (Ord a) => Ord (Layout a)
+derive instance genericLayout :: (Generic a) => Generic (Layout a)

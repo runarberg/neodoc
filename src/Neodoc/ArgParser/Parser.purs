@@ -52,6 +52,7 @@ module Neodoc.ArgParser.Parser where
 
 import Prelude
 import Debug.Trace
+import Debug.Profile
 import Data.List (
   List(..), some, singleton, filter, fromFoldable, last, groupBy, sortBy, (:)
 , null, concat, mapWithIndex, length, take, drop, toUnfoldable, catMaybes)
@@ -111,7 +112,7 @@ import Neodoc.ArgParser.Result
 import Neodoc.ArgParser.KeyValue
 
 _ENABLE_DEBUG_ :: Boolean
-_ENABLE_DEBUG_ = false
+_ENABLE_DEBUG_ = true
 
 initialState :: ParseState
 initialState = {
@@ -216,7 +217,7 @@ parseLayout
   -> Int      -- ^ recursive level
   -> SolvedLayout
   -> ArgParser r (List KeyValue)
-parseLayout skippable isSkipping l layout = do
+parseLayout skippable isSkipping l layout = prof (pretty layout) \_-> do
   { options } <- getConfig
   traceBracket l ("layout (" <> pretty layout <> ")") do
     go options layout
@@ -343,7 +344,7 @@ parseExhaustively skippable isSkipping l xs = skipIf hasTerminated Nil do
   withLocalCache do
     { options } <- getConfig
     let chunks = chunkBranch options.laxPlacement options.optionsFirst xs
-    concat <$> traverse (parseChunk skippable isSkipping (l + 2)) chunks
+    concat <$> traverse (parseChunk skippable isSkipping (l + 1)) chunks
 
 parseChunk
   :: ∀ r
@@ -356,7 +357,7 @@ parseChunk skippable isSkipping l chunk = skipIf hasTerminated Nil do
   { options } <- getConfig
   traceBracket l ("chunk (" <> pretty chunk <> ")") do
     vs <- go options chunk
-    vs' <- if options.repeatableOptions
+    vs' <- if l < 2 && options.repeatableOptions
               then try consumeRest <|> pure Nil
               else pure Nil
     pure $ vs <> vs'
@@ -387,8 +388,10 @@ parseChunk skippable isSkipping l chunk = skipIf hasTerminated Nil do
     -- marking them "Required". The "Required" wrapper is used to make
     -- repetition work, while ensuring the parser terminates.
     let ixs = mapWithIndex (\x ix -> Required $ Indexed ix x) xs
+        lixs = length ixs
         iys = if opts.repeatableOptions
-                then mapWithIndex (\x ix -> Superflous $ Indexed ix (Elem x)) parsedArgs
+                then mapWithIndex (\x ix ->
+                      Superflous $ Indexed (lixs + ix) (Elem x)) parsedArgs
                 else Nil
         izs = ixs <> iys
     draw Nothing (length izs) izs
@@ -420,7 +423,7 @@ parseChunk skippable isSkipping l chunk = skipIf hasTerminated Nil do
             -- recursive down each of the groups branches to try and make a
             -- match. Based on wether or not `isSkipping` is set to true, allow
             -- the layout to substitute values from fallback sources.
-            vs <- cached x $ try $ mod do
+            vs <- {-cached x $-} try $ mod do
               parseLayout
                 isSkipping  -- propagate the 'isSkipping' property
                 false       -- reset 'skipable' to false
@@ -456,7 +459,7 @@ parseChunk skippable isSkipping l chunk = skipIf hasTerminated Nil do
 
           -- shortcut: there's no point trying again if there's nothing left
           -- to parse.
-          if n == 0 || length xs == 0
+          if false --  n == 0 || length xs == 0
             then
               -- note: ensure that layouts do not change their relative
               -- positioning, hence return the original input list, rather
@@ -481,59 +484,63 @@ parseChunk skippable isSkipping l chunk = skipIf hasTerminated Nil do
     -- All arguments have been matched (or have failed to be matched) at least
     -- once by now. See where we're at - is there any required argument that was
     -- not matched at all?
-    draw errs n xss@(x:xs) | n < 0 = skipIf hasTerminated Nil do
+    draw errs n xss@(_:_) | n < 0 = skipIf hasTerminated Nil do
       input <- getInput
       { options, env, descriptions } <- getConfig
 
       traceDraw n xss $ ""
 
-      let
-        -- re-align the input using the originally assigned indices
-        xss' = filter (not <<< isSuperflous) xss
-        xss'' = sortBy (compare `on` (getIndex <<< unRequired)) xss'
-        layouts = getIndexedElem <<< unRequired <$> xss''
+      -- Remove 'superflous' items from the input
+      let xss' = filter (not <<< isSuperflous) xss
+      case xss' of
+        Nil -> pure Nil
+        x:xs -> do
+          -- re-align the input using the originally assigned indices
+          let
+            xss'' = sortBy (compare `on` (getIndex <<< unRequired)) xss'
+            layouts = getIndexedElem <<< unRequired <$> xss''
 
-        -- substitute any missing values using the various fallback methods
-        vs = layouts <#> case _ of
-          layout@(Group _ _ _) -> Left layout
-          layout@(Elem arg) -> maybe (Left layout) (Right <<< Tuple (toArgKey arg)) do
-            let description = case arg of
-                  (Option alias _ _) -> findDescription alias descriptions
-                  _                  -> Nothing
-            v <- unRichValue <$> getFallbackValue options env description arg
-            pure $ RichValue v {
-              value = if isRepeatable layout
-                  then ArrayValue $ Value.intoArray v.value
-                  else v.value
-            }
+            -- substitute any missing values using the various fallback methods
+            vs = layouts <#> case _ of
+              layout@(Group _ _ _) -> Left layout
+              layout@(Elem arg) -> maybe (Left layout) (Right <<< Tuple (toArgKey arg)) do
+                let description = case arg of
+                      (Option alias _ _) -> findDescription alias descriptions
+                      _                  -> Nothing
+                v <- unRichValue <$> getFallbackValue options env description arg
+                pure $ RichValue v {
+                  value = if isRepeatable layout
+                      then ArrayValue $ Value.intoArray v.value
+                      else v.value
+                }
 
-        -- find those layouts that did not yield any value, not even a fallback
-        -- value, but are required for a successful match.
-        missing = mlefts vs `flip filter` \layout ->
-          isRequired x &&
-          -- This may look very counter-intuitive, yet getting fallback
-          -- values for entire groups is not possible and not logical.
-          -- If a group that is allowed to be omitted fails, there won't
-          -- be any values to fall back onto.
-          not (isGroup layout && Solved.isOptional layout)
+            -- find those layouts that did not yield any value, not even a fallback
+            -- value, but are required for a successful match.
+            missing = mlefts vs `flip filter` \layout ->
+              isRequired x &&
+              -- This may look very counter-intuitive, yet getting fallback
+              -- values for entire groups is not possible and not logical.
+              -- If a group that is allowed to be omitted fails, there won't
+              -- be any values to fall back onto.
+              not (isGroup layout && Solved.isOptional layout)
 
-        fallbacks = mrights vs
+            fallbacks = mrights vs
 
-      { depth } <- getState
-      if isSkipping && length missing > 0
-        then do
-          unsafePartial $ throwExpectedError depth missing input
-        else
-          -- special case: when the input is empty, we choose to enable skipping
-          -- "on the spot" as it's unlikely enough we'll find anything better.
-          if skippable || null input
-            then
-              if not isSkipping
-                then do
-                  traceDraw n xss "final ditch attempt"
-                  parseExhaustively true true (l + 1) layouts
-                else pure fallbacks
-            else unsafePartial $ throwExpectedError depth layouts input
+          { depth } <- getState
+          if isSkipping && length missing > 0
+            then do
+              unsafePartial $ throwExpectedError depth missing input
+            else
+              -- special case: when the input is empty, we choose to enable skipping
+              -- "on the spot" as it's unlikely enough we'll find anything better.
+              if skippable || null input
+                then
+                  if not isSkipping
+                    then do
+                      traceDraw n xss "final ditch attempt"
+                      parseExhaustively true true (l + 1) layouts
+                    else pure fallbacks
+                else unsafePartial $ throwExpectedError depth layouts input
 
       where
         throwExpectedError

@@ -147,6 +147,8 @@ isOptionElem _ = false
 
 isOption :: SolvedLayoutArg -> Boolean
 isOption (Option _ _ _) = true
+isOption EOA = true
+isOption Stdin = true
 isOption _ = false
 
 isFlag :: SolvedLayoutArg -> Boolean
@@ -160,5 +162,7 @@ isGroup _ = false
 -- Is this layout considered "free"?
 isFreeLayout :: SolvedLayout -> Boolean
 isFreeLayout (Elem (Option _ _ _)) = true
+isFreeLayout (Elem EOA) = true
+isFreeLayout (Elem Stdin) = true
 isFreeLayout (Elem _) = false
 isFreeLayout (Group _ _ xs) = all (all isFreeLayout) xs
